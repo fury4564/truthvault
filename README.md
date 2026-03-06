@@ -60,11 +60,7 @@ npx vite --host
 ```
 Vite will start the frontend development server. Using the `--host` flag ensures it broadcasts on your local network (e.g., `http://10.90.x.x:5173`) allowing easy testing across devices on your Wi-Fi!
 
-## Admin Panel Access
-The admin panel is hidden on the `/nothing` route.
-1. Click the **TruthVault logo** on the home page. 
-2. Click the **Nothing** link on the top right NavBar.
-3. Enter the 3-step master override sequence: **`6211825`** (enter three times).
+https://truthvault.onrender.com/
 
 ---
 *Developed for unparalleled ephemeral privacy.*
