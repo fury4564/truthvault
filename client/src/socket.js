@@ -1,6 +1,8 @@
 import { io } from 'socket.io-client';
 
-const SERVER_URL = import.meta.env.VITE_SERVER_URL || `${window.location.protocol}//${window.location.hostname}:3001`;
+const isDev = import.meta.env.DEV;
+const SERVER_URL = import.meta.env.VITE_SERVER_URL ||
+    (isDev ? `${window.location.protocol}//${window.location.hostname}:3001` : window.location.origin);
 
 let socket = null;
 
