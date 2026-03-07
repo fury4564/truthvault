@@ -20,10 +20,14 @@ export default function ChatRoom() {
     const [isConnected, setIsConnected] = useState(false);
     const [deliveredMessages, setDeliveredMessages] = useState(new Set());
 
+    const [isRecording, setIsRecording] = useState(false);
+
     const messagesEndRef = useRef(null);
     const socketRef = useRef(null);
     const typingTimeoutRef = useRef(null);
     const inputRef = useRef(null);
+    const mediaRecorderRef = useRef(null);
+    const audioChunksRef = useRef([]);
 
     const internalId = location.state?.internalId;
     const isGhost = location.state?.isGhost;
@@ -52,7 +56,7 @@ export default function ChatRoom() {
         });
 
         socket.on('new-message', (msg) => {
-            setMessages(prev => [...prev, { type: 'message', ...msg }]);
+            setMessages(prev => [...prev, { type: msg.messageType === 'audio' ? 'message' : 'message', ...msg }]);
         });
 
         socket.on('message-delivered', ({ messageId }) => {
@@ -162,6 +166,44 @@ export default function ChatRoom() {
         }
     }
 
+    async function startRecording() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorderRef.current = new MediaRecorder(stream);
+            audioChunksRef.current = [];
+
+            mediaRecorderRef.current.ondataavailable = e => {
+                if (e.data.size > 0) audioChunksRef.current.push(e.data);
+            };
+
+            mediaRecorderRef.current.onstop = () => {
+                const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                reader.onloadend = () => {
+                    const base64AudioMessage = reader.result;
+                    if (socketRef.current && !isGhost) {
+                        socketRef.current.emit('send-message', { message: base64AudioMessage, messageType: 'audio' });
+                    }
+                };
+                stream.getTracks().forEach(track => track.stop());
+            };
+
+            mediaRecorderRef.current.start();
+            setIsRecording(true);
+        } catch (err) {
+            console.error('Mic error:', err);
+            addToast('Microphone access denied or unavailable.', 'error');
+        }
+    }
+
+    function stopRecording() {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+            setIsRecording(false);
+        }
+    }
+
     function handleLeave() {
         // Purge local data
         try {
@@ -223,7 +265,11 @@ export default function ChatRoom() {
                                     <span className="message-time">{formatTime(msg.timestamp)}</span>
                                 </div>
                                 <div className="message-bubble">
-                                    {msg.message}
+                                    {msg.messageType === 'audio' ? (
+                                        <audio controls src={msg.message} style={{ maxWidth: '240px', outline: 'none', height: '36px' }} />
+                                    ) : (
+                                        msg.message
+                                    )}
                                 </div>
                                 {isOwn && deliveredMessages.has(msg.id) && (
                                     <div className="message-receipt">✅</div>
@@ -267,10 +313,24 @@ export default function ChatRoom() {
                             onKeyDown={handleKeyDown}
                             onCopy={e => e.preventDefault()}
                             onPaste={e => e.preventDefault()}
-                            placeholder="Type a message..."
+                            placeholder={isRecording ? "Listening... (Click stop to send)" : "Type a message..."}
+                            disabled={isRecording}
                             rows={1}
                         />
-                        <button className="btn-send" onClick={handleSend} disabled={!inputText.trim()}>
+                        <button
+                            style={{
+                                background: isRecording ? 'var(--accent-danger)' : 'rgba(255,255,255,0.04)',
+                                border: '1px solid var(--border-subtle)',
+                                cursor: 'pointer', padding: '12px', borderRadius: 'var(--radius-md)',
+                                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                transition: 'all 0.2s', minHeight: '44px', minWidth: '44px'
+                            }}
+                            onClick={isRecording ? stopRecording : startRecording}
+                            title={isRecording ? "Stop & Send Voice Message" : "Record Voice Message"}
+                        >
+                            {isRecording ? '⏹️' : '🎤'}
+                        </button>
+                        <button className="btn-send" onClick={handleSend} disabled={!inputText.trim() && !isRecording}>
                             ➤
                         </button>
                     </div>

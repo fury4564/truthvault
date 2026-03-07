@@ -226,6 +226,8 @@ app.get('/api/admin/rooms/:internalId/download', (req, res) => {
             logs.forEach(log => {
                 if (log.event_type === 'message') {
                     txt += `[${log.timestamp}] ${log.anonymous_user_id}: ${log.message_content}\n`;
+                } else if (log.event_type === 'audio_message') {
+                    txt += `[${log.timestamp}] ${log.anonymous_user_id}: [VOICE MESSAGE - See JSON log for base64 audio data]\n`;
                 } else {
                     txt += `[${log.timestamp}] ** ${log.message_content} **\n`;
                 }
@@ -329,19 +331,21 @@ io.on('connection', (socket) => {
         io.to(roomInternalId).emit('user-list', Array.from(roomState.users.values()));
     });
 
-    socket.on('send-message', ({ message }) => {
+    socket.on('send-message', ({ message, messageType = 'text' }) => {
         const roomId = socket.roomInternalId;
         if (!roomId || socket.isGhost) return;
 
         const timestamp = new Date().toISOString();
-        db.addMessageLog(roomId, socket.anonId, socket.userColor, message, 'message');
+        const eventType = messageType === 'audio' ? 'audio_message' : 'message';
+        db.addMessageLog(roomId, socket.anonId, socket.userColor, message, eventType);
 
         const msgData = {
             id: uuidv4(),
             anonId: socket.anonId,
             color: socket.userColor,
             message,
-            timestamp
+            timestamp,
+            messageType
         };
 
         io.to(roomId).emit('new-message', msgData);

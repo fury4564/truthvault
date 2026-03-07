@@ -178,8 +178,13 @@ export default function AdminPanel() {
                                 logs.map(log => (
                                     <div key={log.id} className={`admin-log-entry event-${log.event_type}`}>
                                         <span className="log-time">{formatDate(log.timestamp)}</span>
-                                        <span className="log-user" style={{ color: log.user_color }}>{log.anonymous_user_id}</span>
-                                        <span className="log-content">{log.message_content}</span>
+                                        <span className="log-content">
+                                            {log.event_type === 'audio_message' ? (
+                                                <audio controls src={log.message_content} style={{ maxWidth: '240px', outline: 'none', height: '36px', verticalAlign: 'middle' }} />
+                                            ) : (
+                                                log.message_content
+                                            )}
+                                        </span>
                                     </div>
                                 ))
                             )}
