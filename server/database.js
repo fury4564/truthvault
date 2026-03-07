@@ -119,7 +119,10 @@ function getLogsByRoom(roomInternalId) {
 }
 
 function getMessageCountByRoom(roomInternalId) {
-    return data.messageLogs.filter(l => l.room_internal_id === roomInternalId && l.event_type === 'message').length;
+    return data.messageLogs.filter(l =>
+        l.room_internal_id === roomInternalId &&
+        (l.event_type === 'message' || l.event_type === 'audio_message' || l.event_type === 'image_message')
+    ).length;
 }
 
 // =========== Invite Link Operations ===========
