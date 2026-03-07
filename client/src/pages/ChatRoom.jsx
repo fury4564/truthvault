@@ -26,6 +26,7 @@ export default function ChatRoom() {
     const socketRef = useRef(null);
     const typingTimeoutRef = useRef(null);
     const inputRef = useRef(null);
+    const fileInputRef = useRef(null);
     const mediaRecorderRef = useRef(null);
     const audioChunksRef = useRef([]);
 
@@ -56,7 +57,7 @@ export default function ChatRoom() {
         });
 
         socket.on('new-message', (msg) => {
-            setMessages(prev => [...prev, { type: msg.messageType === 'audio' ? 'message' : 'message', ...msg }]);
+            setMessages(prev => [...prev, { type: (msg.messageType === 'audio' || msg.messageType === 'image') ? 'message' : 'message', ...msg }]);
         });
 
         socket.on('message-delivered', ({ messageId }) => {
@@ -204,6 +205,28 @@ export default function ChatRoom() {
         }
     }
 
+    function handleImageUpload(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        // Limit size to 5MB for stable Socket.IO base64 transmission 
+        if (file.size > 5 * 1024 * 1024) {
+            addToast('Image must be under 5MB.', 'error');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64Image = reader.result;
+            if (socketRef.current && !isGhost) {
+                socketRef.current.emit('send-message', { message: base64Image, messageType: 'image' });
+            }
+        };
+        reader.readAsDataURL(file);
+        // Reset input for same file upload
+        e.target.value = null;
+    }
+
     function handleLeave() {
         // Purge local data
         try {
@@ -267,6 +290,8 @@ export default function ChatRoom() {
                                 <div className="message-bubble">
                                     {msg.messageType === 'audio' ? (
                                         <audio controls src={msg.message} style={{ maxWidth: '240px', outline: 'none', height: '36px' }} />
+                                    ) : msg.messageType === 'image' ? (
+                                        <img src={msg.message} alt="Shared visual" style={{ maxWidth: '240px', maxHeight: '240px', borderRadius: 'var(--radius-sm)', display: 'block' }} />
                                     ) : (
                                         msg.message
                                     )}
@@ -317,7 +342,30 @@ export default function ChatRoom() {
                             disabled={isRecording}
                             rows={1}
                         />
+                        <input
+                            type="file"
+                            accept="image/*, image/gif"
+                            style={{ display: 'none' }}
+                            ref={fileInputRef}
+                            onChange={handleImageUpload}
+                        />
                         <button
+                            className="btn-icon"
+                            style={{
+                                background: 'rgba(255,255,255,0.04)',
+                                border: '1px solid var(--border-subtle)',
+                                cursor: 'pointer', padding: '12px', borderRadius: 'var(--radius-md)',
+                                color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                transition: 'all 0.2s', minHeight: '44px', minWidth: '44px'
+                            }}
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isRecording}
+                            title="Send Image or GIF"
+                        >
+                            🖼️
+                        </button>
+                        <button
+                            className="btn-icon"
                             style={{
                                 background: isRecording ? 'var(--accent-danger)' : 'rgba(255,255,255,0.04)',
                                 border: '1px solid var(--border-subtle)',

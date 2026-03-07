@@ -227,7 +227,9 @@ app.get('/api/admin/rooms/:internalId/download', (req, res) => {
                 if (log.event_type === 'message') {
                     txt += `[${log.timestamp}] ${log.anonymous_user_id}: ${log.message_content}\n`;
                 } else if (log.event_type === 'audio_message') {
-                    txt += `[${log.timestamp}] ${log.anonymous_user_id}: [VOICE MESSAGE - See JSON log for base64 audio data]\n`;
+                    txt += `[${log.timestamp}] ${log.anonymous_user_id}: [VOICE MESSAGE - See JSON log for base64 data]\n`;
+                } else if (log.event_type === 'image_message') {
+                    txt += `[${log.timestamp}] ${log.anonymous_user_id}: [IMAGE/GIF MESSAGE - See JSON log for base64 data]\n`;
                 } else {
                     txt += `[${log.timestamp}] ** ${log.message_content} **\n`;
                 }
@@ -336,7 +338,9 @@ io.on('connection', (socket) => {
         if (!roomId || socket.isGhost) return;
 
         const timestamp = new Date().toISOString();
-        const eventType = messageType === 'audio' ? 'audio_message' : 'message';
+        let eventType = 'message';
+        if (messageType === 'audio') eventType = 'audio_message';
+        if (messageType === 'image') eventType = 'image_message';
         db.addMessageLog(roomId, socket.anonId, socket.userColor, message, eventType);
 
         const msgData = {
